@@ -1,0 +1,35 @@
+name:                azure-storage
+version:             0.1.0.0
+-- synopsis:            
+-- description:         
+license:             BSD3
+license-file:        LICENSE
+author:              Yusuke Nomura
+maintainer:          nomura_y@welmo.co.jp
+-- copyright:           
+category:            Network
+build-type:          Simple
+-- extra-source-files:  
+cabal-version:       >=1.10
+
+library
+  exposed-modules:     Cloud.Azure.Storage
+                     , Cloud.Azure.Storage.Table
+  other-modules:       Cloud.Azure.Storage.Core
+                     , Cloud.Azure.Storage.Aeson
+  -- other-extensions:    
+  default-language:    Haskell2010
+  default-extensions:  OverloadedStrings
+  ghc-options:         -Wall
+  build-depends:       base ==4.*
+                     , aeson
+                     , base64-bytestring
+                     , byteable
+                     , bytestring
+                     , cryptohash
+                     , HsOpenSSL
+                     , http-streams
+                     , io-streams
+                     , network-uri
+                     , template-haskell
+                     , unix-time
