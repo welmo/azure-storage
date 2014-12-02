@@ -28,7 +28,7 @@ library
                      , bytestring
                      , cryptohash
                      , HsOpenSSL
-                     , http-streams
+                     , http-streams >= 0.7.2.4
                      , io-streams
                      , network-uri
                      , template-haskell
