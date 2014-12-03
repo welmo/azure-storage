@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, QuasiQuotes, FlexibleInstances, UndecidableInstances, DeriveDataTypeable #-}
+{-# LANGUAGE TemplateHaskell, QuasiQuotes, FlexibleInstances, UndecidableInstances #-}
 
 module Cloud.Azure.Storage.Table
     ( TableName(..)
@@ -7,22 +7,19 @@ module Cloud.Azure.Storage.Table
     , TableEntity
     , deriveTableEntity
     , insertEntity
-    , AzureErrorMessage(..)
-    , AzureError(..)
     ) where
 
 import Control.Applicative
 import Control.Arrow (first)
 import Control.Exception --(Exception, throw)
 import Control.Monad (unless)
-import Data.Aeson (FromJSON, ToJSON, Value, Result(Success, Error))
+import Data.Aeson (FromJSON, ToJSON, Value)
 import qualified Data.Aeson as Aeson
-import Data.Aeson.TH (deriveJSON, deriveFromJSON, defaultOptions)
+import Data.Aeson.TH (deriveJSON)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BC
 import Data.Monoid ((<>))
 import Data.String (IsString(fromString))
-import Data.Typeable (Typeable)
 import qualified Data.UnixTime as UnixTime
 import Language.Haskell.TH
 import Network.Http.Client (Method(..))
@@ -30,7 +27,7 @@ import qualified Network.Http.Client as Http
 import qualified System.IO.Streams as Streams
 import qualified System.IO.Streams.Attoparsec as SA
 
-import Cloud.Azure.Storage.Aeson (azureOptions, azureErrorOptions)
+import Cloud.Azure.Storage.Aeson (azureOptions)
 import Cloud.Azure.Storage.Core (Resource, StorageAccount)
 import qualified Cloud.Azure.Storage.Core as Core
 
@@ -39,36 +36,6 @@ data TableOperation a = TableOperation
     , resource :: Resource
     , param :: Maybe a
     }
-
-result :: (String -> r) -> (a -> r) -> Result a -> r
-result f _ (Error msg) = f msg
-result _ f (Success a) = f a
-
-newtype Response a = Response { value :: [a] }
-
-deriveFromJSON defaultOptions ''Response
-
-data AzureErrorMessage = AzureErrorMessage
-    { lang :: String
-    , errorValue :: String
-    }
-  deriving (Show)
-
-deriveFromJSON azureErrorOptions ''AzureErrorMessage
-
-data AzureError = AzureError
-    { code :: String
-    , message :: AzureErrorMessage
-    }
-  deriving (Show, Typeable)
-
-deriveFromJSON azureErrorOptions ''AzureError
-
-instance Exception AzureError
-
-newtype OdataError = OdataError { odataError :: AzureError }
-
-deriveFromJSON azureErrorOptions ''OdataError
 
 runStorageTable1 :: ToJSON a
     => StorageAccount -> TableOperation a -> IO Value
@@ -90,7 +57,7 @@ runStorageTable1 acc op = do
             if Http.getStatusCode res == 200
                 then SA.parseFromStream Aeson.json i
                 else SA.parseFromStream Aeson.json i >>=
-                    result fail (throwIO . odataError) . Aeson.fromJSON
+                    Core.result fail (throwIO . Core.odataError) . Aeson.fromJSON
   where
     host = Core.accountName acc <> ".table.core.windows.net"
     body = maybe (return Http.emptyBody) $ \p ->
@@ -101,14 +68,14 @@ runStorageTable :: (FromJSON a, ToJSON a)
     -> TableOperation a
     -> IO [a]
 runStorageTable acc op = runStorageTable1 acc op >>=
-    result fail (return . value) . Aeson.fromJSON
+    Core.result fail (return . Core.value) . Aeson.fromJSON
 
 runStorageTable' :: (FromJSON a, ToJSON a)
     => StorageAccount
     -> TableOperation a
     -> IO a
 runStorageTable' acc op = runStorageTable1 acc op >>=
-    result fail return . Aeson.fromJSON
+    Core.result fail return . Aeson.fromJSON
 
 newtype TableName = TableName { tableName :: String }
   deriving (Show)

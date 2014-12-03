@@ -5,4 +5,6 @@ module Cloud.Azure.Storage
 import Cloud.Azure.Storage.Core
     ( StorageAccount
     , storageAccount
+    , AzureError
+    , AzureErrorMessage
     )
