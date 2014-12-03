@@ -33,3 +33,4 @@ library
                      , network-uri
                      , template-haskell
                      , unix-time
+                     , word8
