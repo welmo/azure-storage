@@ -47,8 +47,10 @@ import Data.Word8 (toLower)
 import Network.Http.Client (Connection, RequestBuilder, Hostname, Port, Method(..), ContentType)
 import qualified Network.Http.Client as Http
 import qualified OpenSSL.Session as SSL
+import qualified Safe
 
 import Cloud.Azure.Storage.Aeson (azureErrorOptions)
+import Debug.Trace
 
 data AuthType = SharedKey | SharedKeyLite deriving (Show)
 type AccountName = ByteString
@@ -110,7 +112,7 @@ stringToSign
     -> AccountName
     -> Resource
     -> ByteString
-stringToSign verb enc lang len md5 ctype date since match nmatch usince range headers acc resource = BS.intercalate "\n"
+stringToSign verb enc lang len md5 ctype date since match nmatch usince range headers acc resource = debug $ BS.intercalate "\n"
     [ BC.pack $ show verb
     , nullOr enc
     , nullOr lang
@@ -127,6 +129,7 @@ stringToSign verb enc lang len md5 ctype date since match nmatch usince range he
     , cresource
     ]
   where
+    debug a = traceShow a a
     cheaders
         = BS.intercalate " "
         . map (\(a, b) -> BS.concat [a, ":", b])
@@ -134,7 +137,8 @@ stringToSign verb enc lang len md5 ctype date since match nmatch usince range he
         . map (first $ BS.map toLower)
         . filter (BS.isPrefixOf "x-ms-" . fst)
         $ headers
-    [path, params] = BC.split '?' resource
+    (path, params) = let (p:ps) = BC.split '?' resource
+            in (p, fromMaybe BS.empty (Safe.headMay ps))
     sp c = (\[a, b] -> (a, b)) . BC.split c
     cresource = BS.intercalate "\n" $ BS.concat ["/", acc, path]:resparams
     resparams
@@ -188,13 +192,11 @@ request
 request acc key host verb md5 ctype date res = do
     Http.setHostname host 443
     Http.http verb res
-    Http.setAccept "application/json;odata=nometadata"
     Http.setHeader "Date" $ formatDate date
     Http.setHeader "DataServiceVersion" "3.0"
     Http.setHeader "x-ms-version" apiVersion
-    Http.setHeader "Accept-Encoding" "UTF-8"
     whenJust md5 $ Http.setHeader "Content-MD5"
-    whenJust ctype $ Http.setContentType
+    whenJust ctype Http.setContentType
     Http.setHeader "Authorization"
         $ authorizationHeader SharedKey acc
         $ signature key

@@ -39,25 +39,24 @@ data TableOperation a = TableOperation
 
 runStorageTable1 :: ToJSON a
     => StorageAccount -> TableOperation a -> IO Value
-runStorageTable1 acc op = do
-    Core.withConnection host 443 $ \conn -> do
-        time <- UnixTime.getUnixTime
-        req <- Http.buildRequest $ Core.requestForTable
-                (Core.accountName acc)
-                (Core.accountKey acc)
-                host
-                (method op)
-                Nothing
-                (Just "application/json")
-                time
-                (resource op)
+runStorageTable1 acc op = Core.withConnection host 443 $ \conn -> do
+    time <- UnixTime.getUnixTime
+    req <- Http.buildRequest $ Core.requestForTable
+            (Core.accountName acc)
+            (Core.accountKey acc)
+            host
+            (method op)
+            Nothing
+            (Just "application/json")
+            time
+            (resource op)
 
-        Http.sendRequest conn req =<< body (param op)
-        Http.receiveResponse conn $ \res i ->
-            if Http.getStatusCode res == 200
-                then SA.parseFromStream Aeson.json i
-                else SA.parseFromStream Aeson.json i >>=
-                    Core.result fail (throwIO . Core.odataError) . Aeson.fromJSON
+    Http.sendRequest conn req =<< body (param op)
+    Http.receiveResponse conn $ \res i ->
+        if Http.getStatusCode res == 200
+            then SA.parseFromStream Aeson.json i
+            else SA.parseFromStream Aeson.json i >>=
+                Core.result fail (throwIO . Core.odataError) . Aeson.fromJSON
   where
     host = Core.accountName acc <> ".table.core.windows.net"
     body = maybe (return Http.emptyBody) $ \p ->
